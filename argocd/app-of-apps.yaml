@@ -1,0 +1,21 @@
+# Root Application implementing the "app of apps" pattern: ArgoCD watches
+# this one Application, which in turn points at argocd/apps/, so adding a
+# new environment is a one-file PR rather than a manual `argocd app create`.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo-root
+  namespace: argocd
+spec:
+  project: gitops-demo
+  source:
+    repoURL: https://github.com/OWNER/gitops-multi-env-pipeline.git
+    targetRevision: main
+    path: argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

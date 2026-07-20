@@ -1,0 +1,23 @@
+# Prod: deliberately NOT automated at the ArgoCD level. Even after a
+# promotion PR is merged, a human must explicitly sync in the ArgoCD UI/CLI
+# (or the promote-prod GitHub Actions workflow performs the sync only
+# after its own GitHub Environment approval gate is cleared). This is the
+# second, independent approval gate for production, on top of PR review.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo-app-prod
+  namespace: argocd
+spec:
+  project: gitops-demo
+  source:
+    repoURL: https://github.com/OWNER/gitops-multi-env-pipeline.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    # No "automated:" block -> manual sync only.

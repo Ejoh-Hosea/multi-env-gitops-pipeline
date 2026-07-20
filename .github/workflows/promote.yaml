@@ -1,0 +1,61 @@
+# Manually triggered promotion. This does NOT deploy anything by itself --
+# it only opens a Pull Request that changes the image tag for the target
+# environment's kustomize overlay. That PR is where the human approval
+# gate lives (branch protection requires >=1 review; prod overlay paths
+# are additionally owned by @platform-team via CODEOWNERS, see
+# .github/CODEOWNERS).
+#
+# Usage: gh workflow run promote.yaml -f target_env=staging -f image_tag=abcd1234
+name: Promote image to environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Environment to promote to"
+        required: true
+        type: choice
+        options: [staging, prod]
+      image_tag:
+        description: "Immutable image tag to promote (must already exist in dev/staging)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  open-promotion-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Bump image tag for ${{ inputs.target_env }}
+        working-directory: k8s/overlays/${{ inputs.target_env }}
+        run: |
+          kustomize edit set image ghcr.io/${{ env.IMAGE_NAME }}=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+
+      - name: Open promotion PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: promote/${{ inputs.target_env }}-${{ inputs.image_tag }}
+          title: "Promote ${{ inputs.image_tag }} to ${{ inputs.target_env }}"
+          body: |
+            Promotes image tag `${{ inputs.image_tag }}` to **${{ inputs.target_env }}**.
+
+            - This PR only changes `k8s/overlays/${{ inputs.target_env }}/kustomization.yaml`
+            - Merging requires review per branch protection rules
+            - Merging triggers `promote-deploy.yaml`, which performs the actual ArgoCD sync
+              behind a GitHub Environment approval gate
+          commit-message: "chore(${{ inputs.target_env }}): promote ${{ inputs.image_tag }}"
+          labels: promotion,${{ inputs.target_env }}

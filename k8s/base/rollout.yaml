@@ -1,0 +1,59 @@
+# Argo Rollouts "Rollout" resource. It is a drop-in replacement for a
+# standard Deployment but adds progressive delivery: canary steps, automated
+# analysis (via Prometheus queries), and easy rollback.
+#
+# The base defines sane, conservative defaults. Each environment overlay
+# patches the strategy (dev = fast/no gates, staging = canary + analysis,
+# prod = canary + analysis + longer bake times + manual promotion gate).
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gitops-demo-app
+  labels:
+    app: gitops-demo-app
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: gitops-demo-app
+  template:
+    metadata:
+      labels:
+        app: gitops-demo-app
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/OWNER/gitops-demo-app:placeholder
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: gitops-demo-app-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 100

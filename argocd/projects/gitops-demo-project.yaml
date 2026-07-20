@@ -1,0 +1,25 @@
+# An ArgoCD AppProject scopes what the Applications below are allowed to do
+# (which repos, which destination clusters/namespaces, which resource
+# kinds). This is the RBAC boundary between environments.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gitops-demo
+  namespace: argocd
+spec:
+  description: Multi-environment GitOps demo project
+  sourceRepos:
+    - "https://github.com/OWNER/gitops-multi-env-pipeline.git"
+  destinations:
+    - namespace: dev
+      server: https://kubernetes.default.svc
+    - namespace: staging
+      server: https://kubernetes.default.svc
+    - namespace: prod
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

@@ -1,0 +1,24 @@
+# Dev: fully automated. Any merge to main that updates the dev image tag
+# is synced immediately, with self-heal so manual cluster drift is
+# corrected automatically. This is intentional -- dev is meant to be
+# disposable and always reflect the tip of main.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo-app-dev
+  namespace: argocd
+spec:
+  project: gitops-demo
+  source:
+    repoURL: https://github.com/OWNER/gitops-multi-env-pipeline.git
+    targetRevision: main
+    path: k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

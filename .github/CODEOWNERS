@@ -1,0 +1,5 @@
+# Requires platform-team review on anything touching prod, enforced
+# together with branch protection ("Require review from Code Owners").
+/k8s/overlays/prod/       @OWNER/platform-team
+/argocd/apps/app-prod.yaml @OWNER/platform-team
+/terraform/                @OWNER/platform-team

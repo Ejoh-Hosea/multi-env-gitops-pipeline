@@ -1,0 +1,105 @@
+# CI: runs on every push to main. Tests -> builds one immutable image ->
+# pushes it -> automatically deploys that image to DEV ONLY by committing
+# the new tag into k8s/overlays/dev/kustomization.yaml. ArgoCD (already
+# watching that path) then syncs dev within seconds.
+#
+# Staging and prod are intentionally NOT touched here -- see
+# promote.yaml, which requires a human-approved PR / environment gate.
+name: CI - build, test, deploy to dev
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/ci.yaml"
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+      - run: npm install
+      - run: npm test
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute short SHA tag
+        id: meta
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-8)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: app
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"   # set to "1" to hard-fail the pipeline on findings
+
+  deploy-dev:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITOPS_PAT }}   # PAT with repo write, so this commit re-triggers other workflows correctly
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Bump dev image tag
+        working-directory: k8s/overlays/dev
+        run: |
+          kustomize edit set image ghcr.io/${{ env.IMAGE_NAME }}=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Commit and push (GitOps commit)
+        run: |
+          git config user.name "gitops-bot"
+          git config user.email "gitops-bot@users.noreply.github.com"
+          git add k8s/overlays/dev/kustomization.yaml
+          git diff --cached --quiet && echo "no changes" && exit 0
+          git commit -m "chore(dev): deploy ${{ needs.build-and-push.outputs.image_tag }} [skip ci]"
+          git push

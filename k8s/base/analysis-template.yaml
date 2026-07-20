@@ -1,0 +1,25 @@
+# AnalysisTemplate used by the Rollout to automatically judge whether a
+# canary step is healthy before advancing weight. If the error rate query
+# breaches the failureCondition, Argo Rollouts pauses/aborts the rollout
+# and (in staging/prod) automatically rolls traffic back to the stable
+# ReplicaSet -- no human has to notice a bad deploy in real time.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: error-rate
+      interval: 30s
+      count: 3
+      successCondition: result < 0.05
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local
+          query: |
+            sum(rate(http_errors_total{route="/"}[1m]))
+            /
+            sum(rate(http_requests_total{route="/"}[1m]))

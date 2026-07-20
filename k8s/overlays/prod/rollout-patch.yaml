@@ -1,0 +1,28 @@
+# Production: longest bake times, most replicas, and an explicit manual
+# "pause: {}" (no duration) after the first traffic shift -- this means the
+# rollout will NOT proceed past 25% weight until a human runs
+# `kubectl argo rollouts promote gitops-demo-app -n prod`, in addition to
+# the automated Prometheus analysis running throughout.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gitops-demo-app
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: success-rate
+        args:
+          - name: service-name
+            value: gitops-demo-app
+        startingStep: 1
+      steps:
+        - setWeight: 10
+        - pause: {}                 # manual promotion gate
+        - setWeight: 25
+        - pause: { duration: 5m }
+        - setWeight: 50
+        - pause: { duration: 5m }
+        - setWeight: 100

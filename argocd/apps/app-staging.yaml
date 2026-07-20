@@ -1,0 +1,24 @@
+# Staging: also auto-synced by ArgoCD, BUT the image tag in
+# k8s/overlays/staging only changes when a *reviewed promotion PR*
+# (scripts/promote.sh) is merged -- so the approval gate lives in git
+# history/PR review, not in ArgoCD's sync policy itself.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo-app-staging
+  namespace: argocd
+spec:
+  project: gitops-demo
+  source:
+    repoURL: https://github.com/OWNER/gitops-multi-env-pipeline.git
+    targetRevision: main
+    path: k8s/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

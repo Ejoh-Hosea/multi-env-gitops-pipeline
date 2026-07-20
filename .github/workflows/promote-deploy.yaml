@@ -1,0 +1,63 @@
+# Fires when a promotion PR (from promote.yaml) is merged to main, i.e.
+# when k8s/overlays/staging or k8s/overlays/prod actually changes.
+#
+# The `environment:` key on each job is the SECOND, independent approval
+# gate: in GitHub repo settings, the "staging" and "production" Environments
+# are configured with required reviewers, so the job below literally
+# cannot start executing until someone with permission clicks "Approve" in
+# the Actions UI -- even though the code change was already merged.
+#
+# staging  -> 1 required reviewer, no wait timer
+# production -> 2 required reviewers, 5 minute wait timer, restricted to
+#               the `main` branch (configure these in
+#               Settings > Environments in the GitHub UI; see README)
+name: Promote - deploy via ArgoCD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "k8s/overlays/staging/**"
+      - "k8s/overlays/prod/**"
+
+jobs:
+  deploy-staging:
+    if: contains(github.event.head_commit.modified, 'k8s/overlays/staging/kustomization.yaml')
+    runs-on: ubuntu-latest
+    environment: staging   # <-- gate: required reviewer approval before this job runs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install argocd CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+      - name: Sync staging Application
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          argocd app sync gitops-demo-app-staging --grpc-web
+          argocd app wait gitops-demo-app-staging --health --timeout 300 --grpc-web
+
+  deploy-prod:
+    if: contains(github.event.head_commit.modified, 'k8s/overlays/prod/kustomization.yaml')
+    runs-on: ubuntu-latest
+    environment: production   # <-- gate: 2 reviewers + wait timer before this job runs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install argocd + kubectl argo rollouts plugin
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+      - name: Sync prod Application
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          # Prod ArgoCD Application has no automated sync policy (see
+          # argocd/apps/app-prod.yaml), so this explicit sync call is the
+          # only thing that moves the change from git into the cluster.
+          argocd app sync gitops-demo-app-prod --grpc-web
+          echo "Rollout started. It will pause at 10% weight for manual promotion:"
+          echo "  kubectl argo rollouts get rollout gitops-demo-app -n prod --watch"
+          echo "  kubectl argo rollouts promote gitops-demo-app -n prod"
