@@ -12,5 +12,5 @@ configMapGenerator:
     literals:
       - ENVIRONMENT=staging
 images:
-  - name: ghcr.io/OWNER/gitops-demo-app
-    newTag: "staging-placeholder"   # <-- updated only via reviewed promotion PR (see scripts/promote.sh)
+  - name: ghcr.io/ejoh-hosea/gitops-demo-app
+    newTag: "staging-placeholder" # <-- updated only via reviewed promotion PR (see scripts/promote.sh)

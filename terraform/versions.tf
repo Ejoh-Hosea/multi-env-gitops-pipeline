@@ -18,10 +18,10 @@ terraform {
   # Remote state with locking. Create the bucket/table once, out of band,
   # before running `terraform init` (see README bootstrap section).
   backend "s3" {
-    bucket         = "REPLACE-ME-gitops-demo-tfstate"
+    bucket         = "ejoh-gitops-demo1-tfstate"
     key            = "gitops-multi-env-pipeline/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "REPLACE-ME-gitops-demo-tf-locks"
+    dynamodb_table = "ejoh-gitops-demo1-tf-locks"
     encrypt        = true
   }
 }

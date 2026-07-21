@@ -9,8 +9,10 @@ metadata:
 spec:
   description: Multi-environment GitOps demo project
   sourceRepos:
-    - "https://github.com/OWNER/gitops-multi-env-pipeline.git"
+    - "https://github.com/Ejoh-Hosea/multi-env-gitops-pipeline.git"
   destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
     - namespace: dev
       server: https://kubernetes.default.svc
     - namespace: staging

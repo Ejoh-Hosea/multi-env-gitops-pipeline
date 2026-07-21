@@ -14,6 +14,13 @@ module "eks" {
   # AWS Load Balancer Controller, External Secrets Operator, Cluster
   # Autoscaler) assume narrowly-scoped IAM roles instead of using node
   # instance-profile credentials.
+  # Grants the IAM identity that runs `terraform apply` (you) cluster-admin
+  # access automatically. Without this, only the identities listed in
+  # access_entries below can authenticate -- and since the kubernetes/helm
+  # providers below authenticate as *you*, Terraform itself would be locked
+  # out of the cluster it just created.
+  enable_cluster_creator_admin_permissions = true
+
   enable_irsa = true
 
   eks_managed_node_groups = {

@@ -13,5 +13,5 @@ configMapGenerator:
     literals:
       - ENVIRONMENT=prod
 images:
-  - name: ghcr.io/OWNER/gitops-demo-app
-    newTag: "prod-placeholder"   # <-- updated only via reviewed promotion PR gated by a GitHub Environment approval
+  - name: ghcr.io/ejoh-hosea/gitops-demo-app
+    newTag: "prod-placeholder" # <-- updated only via reviewed promotion PR gated by a GitHub Environment approval

@@ -12,5 +12,5 @@ configMapGenerator:
     literals:
       - ENVIRONMENT=dev
 images:
-  - name: ghcr.io/OWNER/gitops-demo-app
-    newTag: "dev-placeholder"   # <-- overwritten automatically by CI on every merge to main
+  - name: ghcr.io/ejoh-hosea/gitops-demo-app
+    newTag: "dev-placeholder" # <-- overwritten automatically by CI on every merge to main

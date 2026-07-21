@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/OWNER/gitops-demo-app:placeholder
+          image: ghcr.io/ejoh-hosea/gitops-demo-app:placeholder
           ports:
             - containerPort: 8080
           envFrom:

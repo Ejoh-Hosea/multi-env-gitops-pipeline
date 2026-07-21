@@ -11,7 +11,7 @@ metadata:
 spec:
   project: gitops-demo
   source:
-    repoURL: https://github.com/OWNER/gitops-multi-env-pipeline.git
+    repoURL: https://github.com/Ejoh-Hosea/multi-env-gitops-pipeline.git
     targetRevision: main
     path: k8s/overlays/prod
   destination:

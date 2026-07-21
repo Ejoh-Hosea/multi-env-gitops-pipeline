@@ -9,7 +9,12 @@ resource "helm_release" "argocd" {
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "7.3.11"
+  # No version pinned: Argo/Prometheus charts release frequently enough
+  # that a hardcoded patch version here goes stale within months and
+  # causes `chart not found` errors. This resolves to whatever is
+  # currently latest. Once your cluster is stable, run
+  # `helm search repo argo/argo-cd` and pin the exact version here for
+  # reproducible future applies.
   namespace        = "argocd"
   create_namespace = true
 
@@ -26,7 +31,7 @@ resource "helm_release" "argo_rollouts" {
   name             = "argo-rollouts"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-rollouts"
-  version          = "2.34.5"
+  # See note on helm_release.argocd above re: intentionally unpinned version.
   namespace        = "argo-rollouts"
   create_namespace = true
 
@@ -37,7 +42,7 @@ resource "helm_release" "kube_prometheus_stack" {
   name             = "kube-prometheus-stack"
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
-  version          = "58.2.1"
+  # See note on helm_release.argocd above re: intentionally unpinned version.
   namespace        = "monitoring"
   create_namespace = true
 
