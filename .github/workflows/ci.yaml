@@ -43,12 +43,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
+      image_name: ${{ steps.repo.outputs.lowercase }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Compute short SHA tag
         id: meta
         run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-8)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute lowercase image name (GHCR requires lowercase)
+        id: repo
+        run: echo "lowercase=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -65,17 +70,17 @@ jobs:
           context: app
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.lowercase }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.lowercase }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Scan image for vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+          image-ref: ${{ env.REGISTRY }}/${{ steps.repo.outputs.lowercase }}:${{ steps.meta.outputs.tag }}
           severity: "CRITICAL,HIGH"
-          exit-code: "0"   # set to "1" to hard-fail the pipeline on findings
+          exit-code: "0" # set to "1" to hard-fail the pipeline on findings
 
   deploy-dev:
     needs: build-and-push
@@ -83,7 +88,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITOPS_PAT }}   # PAT with repo write, so this commit re-triggers other workflows correctly
+          token: ${{ secrets.GITOPS_PAT }} # PAT with repo write, so this commit re-triggers other workflows correctly
 
       - name: Install kustomize
         run: |
@@ -93,7 +98,7 @@ jobs:
       - name: Bump dev image tag
         working-directory: k8s/overlays/dev
         run: |
-          kustomize edit set image ghcr.io/${{ env.IMAGE_NAME }}=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+          kustomize edit set image ghcr.io/${{ needs.build-and-push.outputs.image_name }}=${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ needs.build-and-push.outputs.image_tag }}
 
       - name: Commit and push (GitOps commit)
         run: |

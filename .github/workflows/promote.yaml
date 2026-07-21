@@ -35,6 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute lowercase image name (GHCR requires lowercase)
+        id: repo
+        run: echo "lowercase=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Install kustomize
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
@@ -43,7 +47,7 @@ jobs:
       - name: Bump image tag for ${{ inputs.target_env }}
         working-directory: k8s/overlays/${{ inputs.target_env }}
         run: |
-          kustomize edit set image ghcr.io/${{ env.IMAGE_NAME }}=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+          kustomize edit set image ghcr.io/${{ steps.repo.outputs.lowercase }}=${{ env.REGISTRY }}/${{ steps.repo.outputs.lowercase }}:${{ inputs.image_tag }}
 
       - name: Open promotion PR
         uses: peter-evans/create-pull-request@v6
