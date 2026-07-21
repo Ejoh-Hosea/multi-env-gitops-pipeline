@@ -13,7 +13,8 @@ configMapGenerator:
   name: gitops-demo-app-config
 images:
 - name: ghcr.io/ejoh-hosea/gitops-demo-app
-  newTag: dev-placeholder
+  newName: ghcr.io/ejoh-hosea/gitops-demo-app
+  newTag: cc86d1c9
 - name: ghcr.io/ejoh-hosea/multi-env-gitops-pipeline
   newName: ghcr.io/ejoh-hosea/multi-env-gitops-pipeline
   newTag: 65569c9d
